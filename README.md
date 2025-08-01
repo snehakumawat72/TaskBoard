@@ -4,7 +4,7 @@
 
 ![TaskBoard Logo](https://img.shields.io/badge/TaskBoard-Project%20Management-blue?style=for-the-badge&logo=trello)
 
-A modern, full-stack project management system built with cutting-edge technologies, featuring real-time collaboration, intelligent notifications, and an intuitive user experience.
+A modern, full-stack project management system built with cutting-edge technologies, featuring real-time notifications and an intuitive user experience.
 
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=node.js)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18+-blue?style=flat-square&logo=react)](https://reactjs.org/)
@@ -16,15 +16,15 @@ A modern, full-stack project management system built with cutting-edge technolog
 
 ## ✨ Key Features
 
-### 🚀 **Real-time Collaboration**
+### 🚀 **Real-time Updates**
 - **Instant Notifications** - Live updates via Socket.IO for task changes, assignments, and deadlines
 - **Live Status Updates** - See project changes in real-time across all connected users
-- **Team Synchronization** - Multiple users can work simultaneously without conflicts
+- **Multi-user Support** - Multiple users can work simultaneously without conflicts
 
 ### 👥 **Advanced Workspace Management**
-- **Multi-tenant Workspaces** - Organize teams and projects in separate collaborative spaces
+- **Multi-tenant Workspaces** - Organize teams and projects in separate spaces
 - **Role-based Access Control** - Granular permissions for workspace members
-- **Team Invitations** - Easy onboarding with email invitations and workspace codes
+- **User Invitations** - Easy onboarding with email invitations and workspace codes
 
 ### ✅ **Comprehensive Task Management**
 - **Smart Task Organization** - Create, assign, and prioritize tasks with custom statuses
@@ -34,7 +34,7 @@ A modern, full-stack project management system built with cutting-edge technolog
 
 ### 📊 **Analytics & Insights**
 - **Interactive Dashboard** - Visual overview with charts and statistics
-- **Progress Reports** - Track project completion rates and team productivity
+- **Progress Reports** - Track project completion rates and productivity
 - **Activity Timeline** - Complete audit trail of all project activities
 
 ### 🔐 **Enterprise-grade Security**
@@ -94,9 +94,6 @@ A modern, full-stack project management system built with cutting-edge technolog
 Before you begin, ensure you have the following installed:
 - **Node.js** (v18.0.0 or higher) - [Download here](https://nodejs.org/)
 - **npm** or **yarn** package manager
-- **MongoDB Atlas** account - [Sign up free](https://cloud.mongodb.com/)
-- **SendGrid** account for email notifications - [Get API key](https://sendgrid.com/)
-- **Google Cloud Console** (optional, for OAuth) - [Setup guide](https://console.cloud.google.com/)
 
 ### 🔧 Installation & Setup
 
@@ -113,43 +110,12 @@ npm install
 ```
 
 **Environment Setup:**
-```bash
-cp .env.example .env
-```
-
-Edit the `.env` file with your credentials:
-```env
-# Server Configuration
-PORT=5000
-FRONTEND_URL=http://localhost:5175
-
-# Database
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/TaskBoard?retryWrites=true&w=majority
-
-# Authentication
-JWT_SECRET=your_super_secure_jwt_secret_key_here
-GOOGLE_CLIENT_ID=your_google_oauth_client_id
-
-# Email Service
-SENDGRID_API_KEY=SG.your_sendgrid_api_key_here
-FROM_EMAIL=your-email@domain.com
-```
+Create a `.env` file in the backend directory with your database and service configurations.
 
 #### 3️⃣ Frontend Configuration
 ```bash
 cd ../frontend
 npm install
-```
-
-Create frontend environment file:
-```bash
-cp .env.example .env
-```
-
-Configure frontend variables:
-```env
-VITE_API_URL=http://localhost:5000/api-v1
-VITE_SOCKET_URL=http://localhost:5000
 ```
 
 #### 4️⃣ Launch the Application
@@ -182,9 +148,8 @@ npm run dev
 ### 🎯 First Steps After Setup
 1. **Create an account** or sign in with Google
 2. **Create your first workspace** 
-3. **Invite team members** via email
-4. **Start your first project** and add tasks
-5. **Experience real-time notifications** by having multiple users interact
+3. **Start your first project** and add tasks
+4. **Experience real-time notifications** by testing task updates
 
 ### ⚡ Development Scripts
 
@@ -406,128 +371,6 @@ Content-Type: application/json
   }
 }
 ```
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Here's how you can help make TaskBoard even better:
-
-### 🚀 Getting Started with Contributing
-
-1. **Fork the Repository**
-   ```bash
-   # Fork on GitHub, then clone your fork
-   git clone https://github.com/YOUR_USERNAME/TaskBoard.git
-   cd TaskBoard
-   ```
-
-2. **Set Up Development Environment**
-   ```bash
-   # Add upstream remote
-   git remote add upstream https://github.com/snehakumawat72/TaskBoard.git
-   
-   # Install dependencies
-   cd backend && npm install
-   cd ../frontend && npm install
-   ```
-
-3. **Create a Feature Branch**
-   ```bash
-   git checkout -b feature/your-amazing-feature
-   # or
-   git checkout -b fix/bug-you-found
-   ```
-
-### 📋 Development Guidelines
-
-**Code Style:**
-- Follow existing code formatting and structure
-- Use meaningful variable and function names
-- Add comments for complex logic
-- Ensure TypeScript types are properly defined
-
-**Backend Development:**
-- Follow RESTful API conventions
-- Add proper error handling and validation
-- Include unit tests for new features
-- Update API documentation for new endpoints
-
-**Frontend Development:**
-- Use TypeScript for all new components
-- Follow React best practices and hooks patterns
-- Ensure responsive design across devices
-- Add proper accessibility attributes
-
-**Database Changes:**
-- Create migration scripts for schema changes
-- Ensure backward compatibility
-- Document new model fields and relationships
-
-### 🧪 Testing
-
-```bash
-# Run backend tests
-cd backend
-npm test
-
-# Run frontend tests
-cd frontend
-npm test
-
-# Run integration tests
-npm run test:integration
-```
-
-### 📝 Commit Guidelines
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```bash
-# Feature commits
-git commit -m "feat: add real-time task assignment notifications"
-
-# Bug fixes
-git commit -m "fix: resolve socket connection timeout issue"
-
-# Documentation
-git commit -m "docs: update API documentation for new endpoints"
-
-# Performance improvements
-git commit -m "perf: optimize database queries for large projects"
-```
-
-### 🔄 Pull Request Process
-
-1. **Update Documentation** - Ensure README and API docs reflect your changes
-2. **Add Tests** - Include unit/integration tests for new features
-3. **Check Build** - Verify both frontend and backend build successfully
-4. **Create PR** - Use the provided PR template
-5. **Code Review** - Address feedback from maintainers
-6. **Merge** - Squash and merge after approval
-
-### 🐛 Bug Reports
-
-Found a bug? Help us fix it:
-
-1. **Check Existing Issues** - Search for similar problems
-2. **Create Detailed Report** - Use our bug report template
-3. **Provide Reproduction Steps** - Help us reproduce the issue
-4. **Include Environment Info** - OS, Node version, browser, etc.
-
-### 💡 Feature Requests
-
-Have a great idea? We'd love to hear it:
-
-1. **Check Roadmap** - See if it's already planned
-2. **Open Discussion** - Start with a GitHub Discussion
-3. **Create Feature Request** - Use our feature request template
-4. **Provide Use Cases** - Explain how it would help users
-
-### 🏆 Recognition
-
-Contributors will be recognized in:
-- Contributors section of this README
-- Release notes for significant contributions
-- Special thanks in project documentation
 
 ## 📄 License
 
