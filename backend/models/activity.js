@@ -13,6 +13,7 @@ const activityLogSchema = new Schema(
       enum: [
         "created_task",
         "updated_task",
+        "deleted_task",
         "created_subtask",
         "updated_subtask",
         "completed_task",
@@ -21,6 +22,7 @@ const activityLogSchema = new Schema(
         "completed_project",
         "created_workspace",
         "updated_workspace",
+        "deleted_workspace",  // Adding missing enum value
         "added_comment",
         "added_member",
         "removed_member",

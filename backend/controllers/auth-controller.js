@@ -5,6 +5,7 @@ import Verification from "../models/verification.js";
 import { sendEmail } from "../libs/send-email.js";
 import aj from "../libs/arcjet.js";
 import { OAuth2Client } from 'google-auth-library';
+import NotificationService from "../libs/notification.service.js";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -43,6 +44,18 @@ const googleAuth = async (req, res) => {
         isEmailVerified: true, // Google emails are pre-verified
         authProvider: 'google',
       });
+    }
+
+    // Create login welcome notification
+    try {
+      await NotificationService.createLoginWelcomeNotification(
+        user._id,
+        user.name || user.email,
+        new Date()
+      );
+    } catch (notificationError) {
+      console.log('Failed to create Google login notification:', notificationError);
+      // Don't fail the login if notification creation fails
     }
 
     // Generate JWT token
@@ -201,6 +214,18 @@ const loginUser = async (req, res) => {
 
     user.lastLogin = new Date();
     await user.save();
+
+    // Create login welcome notification
+    try {
+      await NotificationService.createLoginWelcomeNotification(
+        user._id,
+        user.name || user.email,
+        new Date()
+      );
+    } catch (notificationError) {
+      console.log('Failed to create login notification:', notificationError);
+      // Don't fail the login if notification creation fails
+    }
 
     const userData = user.toObject();
     delete userData.password;

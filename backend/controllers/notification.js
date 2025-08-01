@@ -1,37 +1,49 @@
-import Notification from "../models/notification.js";
+import NotificationService from "../libs/notification.service.js";
 
 export const getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ userId: req.user.id }).sort({ createdAt: -1 });
-    res.json(notifications);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to get notifications" });
+    const notificationsData = await NotificationService.getUserNotifications(
+      req.user._id,
+      req.query
+    );
+    res.status(200).json({ success: true, data: notificationsData });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch notifications' });
   }
 };
 
 export const markAsRead = async (req, res) => {
   try {
-    await Notification.findByIdAndUpdate(req.params.id, { isRead: true });
-    res.json({ message: "Marked as read" });
-  } catch (err) {
-    res.status(500).json({ message: "Failed to mark as read" });
+    await NotificationService.markAsRead(req.params.id);
+    res.status(200).json({ success: true, message: 'Notification marked as read' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to mark as read' });
   }
 };
 
 export const markAllAsRead = async (req, res) => {
   try {
-    await Notification.updateMany({ userId: req.user.id }, { isRead: true });
-    res.json({ message: "All marked as read" });
-  } catch (err) {
-    res.status(500).json({ message: "Failed to mark all as read" });
+    await NotificationService.markAllAsRead(req.user._id);
+    res.status(200).json({ success: true, message: 'All notifications marked as read' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to mark all as read' });
   }
 };
 
 export const deleteNotification = async (req, res) => {
   try {
-    await Notification.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted" });
-  } catch (err) {
-    res.status(500).json({ message: "Failed to delete notification" });
+    await NotificationService.deleteNotification(req.params.id, req.user._id);
+    res.status(200).json({ success: true, message: 'Notification deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to delete notification' });
+  }
+};
+
+export const getUnreadCount = async (req, res) => {
+  try {
+    const count = await NotificationService.getUnreadCount(req.user._id);
+    res.status(200).json({ success: true, count });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to get unread count' });
   }
 };

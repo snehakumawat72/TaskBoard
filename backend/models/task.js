@@ -43,6 +43,7 @@ const taskSchema = new Schema(
       },
     ],
     comments: [{ type: Schema.Types.ObjectId, ref: "Comment" }],
+    lastDeadlineReminder: { type: Date }, // Track when we last sent a deadline reminder
     attachments: [
       {
         fileName: { type: String, required: true },

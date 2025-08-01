@@ -12,9 +12,10 @@ import "./app.css";
 import ReactQueryProvider from "./provider/react-query-provider";
 import { ThemeProvider } from "./components/theme-provider";
 import { GoogleOAuthProvider} from "@react-oauth/google"; 
-import { AuthProvider } from "@/provider/auth-context"; 
+import { AuthProvider } from "./provider/auth-context"; 
+import { NotificationProvider } from "./context/NotificationProvider"; 
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "982388611359-h93n0a75o75hgtfj6o6vrdsaaohlev7e.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "718256236920-f3l16kve98grbna1jl46amlki6uga1jl.apps.googleusercontent.com";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -47,15 +48,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function App({ children }: { children?: React.ReactNode }) {
+export default function App() {
+  // Debug logging only on client side
+  if (typeof window !== 'undefined') {
+    console.log("Google Client ID:", GOOGLE_CLIENT_ID);
+    console.log("Current origin:", window.location?.origin);
+  }
+  
   return (
     <ReactQueryProvider>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
          <AuthProvider> 
-        <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-          {children}
-          <Outlet />
-        </ThemeProvider>
+          <NotificationProvider>
+            <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+              <Outlet />
+            </ThemeProvider>
+          </NotificationProvider>
         </AuthProvider>
       </GoogleOAuthProvider>
     </ReactQueryProvider>

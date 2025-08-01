@@ -17,58 +17,76 @@ class NotificationService {
     task = null,
     inviteId = null,
     actionUrl = null,
-    metadata = {}
+    metadata = {},
+    // Direct name parameters for better control
+    senderName = null,
+    senderAvatar = null,
+    workspaceName = null,
+    projectName = null,
+    taskName = null
   }) {
     try {
       const notification = new Notification({
-        recipient,
+        userId: recipient,
         type,
         title,
         message,
-        sender,
-        workspace,
-        project,
-        task,
+        senderName: senderName || sender?.name,
+        senderAvatar: senderAvatar || sender?.profilePicture,
+        workspaceName: workspaceName || workspace?.name,
+        projectName: projectName || project?.title,
+        taskName: taskName || task?.title,
         inviteId,
-        actionUrl,
-        metadata
+        workspaceId: workspace?._id || workspace
       });
 
       await notification.save();
       
-      // Populate the notification for real-time emission
-      const populatedNotification = await Notification.findById(notification._id)
-        .populate('sender', 'name email profilePicture')
-        .populate('workspace', 'name')
-        .populate('project', 'name')
-        .populate('task', 'title')
-        .lean();
+      // Get the saved notification (no population needed since we store the data directly)
+      const savedNotification = await Notification.findById(notification._id).lean();
 
       // Transform for frontend
       const transformedNotification = {
-        _id: populatedNotification._id,
-        type: populatedNotification.type,
-        title: populatedNotification.title,
-        message: populatedNotification.message,
-        isRead: populatedNotification.isRead,
-        createdAt: populatedNotification.createdAt,
-        actionUrl: populatedNotification.actionUrl,
-        senderName: populatedNotification.sender?.name,
-        senderAvatar: populatedNotification.sender?.profilePicture,
-        workspaceName: populatedNotification.workspace?.name,
-        projectName: populatedNotification.project?.name,
-        taskName: populatedNotification.task?.title,
-        inviteId: populatedNotification.inviteId,
-        workspaceId: populatedNotification.workspace?._id
+        _id: savedNotification._id,
+        type: savedNotification.type,
+        title: savedNotification.title,
+        message: savedNotification.message,
+        isRead: savedNotification.isRead,
+        createdAt: savedNotification.createdAt,
+        senderName: savedNotification.senderName,
+        senderAvatar: savedNotification.senderAvatar,
+        workspaceName: savedNotification.workspaceName,
+        projectName: savedNotification.projectName,
+        taskName: savedNotification.taskName,
+        inviteId: savedNotification.inviteId,
+        workspaceId: savedNotification.workspaceId
       };
 
       // Emit real-time notification
-      const io = getSocketIO();
-      if (io) {
-        io.to(`user_${recipient.toString()}`).emit('new_notification', {
-          notification: transformedNotification,
-          unreadCount: await this.getUnreadCount(recipient)
-        });
+      try {
+        const io = getSocketIO();
+        if (io) {
+          console.log(`🔔 Emitting notification to user_${recipient.toString()}`);
+          console.log(`📡 Notification data being emitted:`, {
+            notification: transformedNotification,
+            unreadCount: await this.getUnreadCount(recipient)
+          });
+          
+          // Check if user is connected to socket
+          const userRoom = `user_${recipient.toString()}`;
+          const socketsInRoom = await io.in(userRoom).fetchSockets();
+          console.log(`👥 Sockets in room ${userRoom}:`, socketsInRoom.length);
+          
+          io.to(userRoom).emit('new_notification', {
+            notification: transformedNotification,
+            unreadCount: await this.getUnreadCount(recipient)
+          });
+          console.log(`✅ Notification emitted successfully to room: ${userRoom}`);
+        } else {
+          console.log('❌ Socket.IO instance not available');
+        }
+      } catch (socketError) {
+        console.log('❌ Failed to emit notification via socket:', socketError.message);
       }
 
       return notification;
@@ -82,7 +100,7 @@ class NotificationService {
   static async getUnreadCount(userId) {
     try {
       return await Notification.countDocuments({
-        recipient: userId,
+        userId: userId,
         isRead: false
       });
     } catch (error) {
@@ -96,27 +114,23 @@ class NotificationService {
     try {
       const skip = (page - 1) * limit;
       
-      const query = { recipient: userId };
+      const query = { userId: userId };
       if (unreadOnly) {
         query.isRead = false;
       }
 
       const notifications = await Notification.find(query)
-        .populate('sender', 'name email profilePicture')
-        .populate('workspace', 'name')
-        .populate('project', 'name')
-        .populate('task', 'title')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean();
 
       const unreadCount = await Notification.countDocuments({
-        recipient: userId,
+        userId: userId,
         isRead: false
       });
 
-      // Transform notifications to match frontend interface
+      // Transform notifications to match frontend interface (no population needed)
       const transformedNotifications = notifications.map(notification => ({
         _id: notification._id,
         type: notification.type,
@@ -124,14 +138,13 @@ class NotificationService {
         message: notification.message,
         isRead: notification.isRead,
         createdAt: notification.createdAt,
-        actionUrl: notification.actionUrl,
-        senderName: notification.sender?.name,
-        senderAvatar: notification.sender?.profilePicture,
-        workspaceName: notification.workspace?.name,
-        projectName: notification.project?.name,
-        taskName: notification.task?.title,
+        senderName: notification.senderName,
+        senderAvatar: notification.senderAvatar,
+        workspaceName: notification.workspaceName,
+        projectName: notification.projectName,
+        taskName: notification.taskName,
         inviteId: notification.inviteId,
-        workspaceId: notification.workspace?._id
+        workspaceId: notification.workspaceId
       }));
 
       return {
@@ -149,7 +162,7 @@ class NotificationService {
   static async markAsRead(notificationId, userId) {
     try {
       const notification = await Notification.findOneAndUpdate(
-        { _id: notificationId, recipient: userId },
+        { _id: notificationId, userId: userId },
         { isRead: true },
         { new: true }
       );
@@ -178,7 +191,7 @@ class NotificationService {
   static async markAllAsRead(userId) {
     try {
       const result = await Notification.updateMany(
-        { recipient: userId, isRead: false },
+        { userId: userId, isRead: false },
         { isRead: true }
       );
 
@@ -279,11 +292,14 @@ static async createWorkspaceInviteNotification(inviteId, recipientId, senderId, 
     return this.createNotification({
       recipient: recipientId,
       type: 'task_assigned',
-      title: 'Task Assigned',
+      title: '📋 Task Assigned',
       message: `${senderName} assigned you to task "${taskName}" in ${projectName}`,
       sender: senderId,
       task: taskId,
-      actionUrl: `/tasks/${taskId}`
+      actionUrl: `/tasks/${taskId}`,
+      senderName: senderName,
+      taskName: taskName,
+      projectName: projectName
     });
   }
 
@@ -299,26 +315,31 @@ static async createWorkspaceInviteNotification(inviteId, recipientId, senderId, 
     });
   }
 
+  // Enhanced project update notification
   static async createProjectUpdatedNotification(projectId, recipientId, senderId, senderName, projectName, updateType) {
     return this.createNotification({
       recipient: recipientId,
       type: 'project_updated',
-      title: 'Project Updated',
-      message: `${senderName} ${updateType} project "${projectName}"`,
+      title: '📊 Project Updated',
+      message: `${senderName} ${updateType} project "${projectName}". Check out the latest changes!`,
       sender: senderId,
       project: projectId,
-      actionUrl: `/projects/${projectId}`
+      actionUrl: `/projects/${projectId}`,
+      senderName: senderName,
+      projectName: projectName
     });
   }
 
+  // Enhanced member joined notification
   static async createMemberJoinedNotification(workspaceId, recipientId, memberName, workspaceName) {
     return this.createNotification({
       recipient: recipientId,
       type: 'member_joined',
-      title: 'New Member Joined',
-      message: `${memberName} joined "${workspaceName}" workspace`,
+      title: '👋 New Team Member!',
+      message: `${memberName} has joined the "${workspaceName}" workspace. Welcome them to the team!`,
       workspace: workspaceId,
-      actionUrl: `/workspaces/${workspaceId}/members`
+      actionUrl: `/workspaces/${workspaceId}/members`,
+      workspaceName: workspaceName
     });
   }
 
@@ -342,6 +363,147 @@ static async createWorkspaceInviteNotification(inviteId, recipientId, senderId, 
       sender: senderId,
       task: taskId,
       actionUrl: `/tasks/${taskId}`
+    });
+  }
+
+  // Enhanced login welcome notification
+  static async createLoginWelcomeNotification(userId, userName, loginTime = new Date()) {
+    const timeString = loginTime.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    const dateString = loginTime.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    
+    return this.createNotification({
+      recipient: userId,
+      type: 'login_welcome',
+      title: '🎉 Welcome Back!',
+      message: `Hello ${userName}! You successfully logged in on ${dateString} at ${timeString}. Hope you have a productive day ahead!`,
+      actionUrl: '/dashboard',
+      senderName: userName,
+      metadata: { 
+        loginTime: loginTime.toISOString(),
+        welcomeType: 'login_success'
+      }
+    });
+  }
+
+  // Email notification
+  static async createEmailNotification(userId, emailType, subject, details = '') {
+    return this.createNotification({
+      recipient: userId,
+      type: 'email_notification',
+      title: 'Email Sent',
+      message: `${emailType}: ${subject}${details ? ` - ${details}` : ''}`,
+      actionUrl: '/dashboard/notifications',
+      metadata: { emailType, subject, details }
+    });
+  }
+
+  // Enhanced dashboard update notification with specific details
+  static async createDashboardUpdateNotification(userId, updateType, details, actionUrl = '/dashboard') {
+    return this.createNotification({
+      recipient: userId,
+      type: 'dashboard_update',
+      title: 'Dashboard Update',
+      message: `${updateType}: ${details}`,
+      actionUrl: actionUrl,
+      metadata: { updateType, details }
+    });
+  }
+
+  // Enhanced task creation notification
+  static async createTaskCreatedNotification(taskId, recipientId, senderId, senderName, taskName, projectName) {
+    return this.createNotification({
+      recipient: recipientId,
+      type: 'task_created',
+      title: '✨ New Task Created',
+      message: `${senderName} created a new task "${taskName}" in ${projectName}. Check it out!`,
+      sender: senderId,
+      task: taskId,
+      actionUrl: `/tasks/${taskId}`,
+      senderName: senderName,
+      taskName: taskName,
+      projectName: projectName
+    });
+  }
+
+  // Enhanced task update notification
+  static async createTaskUpdatedNotification(taskId, recipientId, senderId, senderName, taskName, updateType) {
+    return this.createNotification({
+      recipient: recipientId,
+      type: 'task_updated',
+      title: '📝 Task Updated',
+      message: `${senderName} ${updateType} task "${taskName}". Stay updated with the latest changes!`,
+      sender: senderId,
+      task: taskId,
+      actionUrl: `/tasks/${taskId}`,
+      senderName: senderName,
+      taskName: taskName
+    });
+  }
+
+  // Enhanced task deletion notification
+  static async createTaskDeletedNotification(recipientId, senderId, senderName, taskName, projectName) {
+    return this.createNotification({
+      recipient: recipientId,
+      type: 'task_deleted',
+      title: '🗑️ Task Deleted',
+      message: `${senderName} deleted task "${taskName}" from ${projectName}`,
+      sender: senderId,
+      actionUrl: '/dashboard',
+      senderName: senderName,
+      taskName: taskName,
+      projectName: projectName
+    });
+  }
+
+  // Enhanced project creation notification
+  static async createProjectCreatedNotification(projectId, recipientId, senderId, senderName, projectName, workspaceName) {
+    return this.createNotification({
+      recipient: recipientId,
+      type: 'project_created',
+      title: '🚀 New Project Created',
+      message: `${senderName} created a new project "${projectName}" in ${workspaceName}. Let's get started!`,
+      sender: senderId,
+      project: projectId,
+      actionUrl: `/projects/${projectId}`,
+      senderName: senderName,
+      projectName: projectName,
+      workspaceName: workspaceName
+    });
+  }
+
+  // Enhanced project deletion notification
+  static async createProjectDeletedNotification(recipientId, senderId, senderName, projectName, workspaceName) {
+    return this.createNotification({
+      recipient: recipientId,
+      type: 'project_deleted',
+      title: '📁 Project Deleted',
+      message: `${senderName} deleted project "${projectName}" from ${workspaceName}`,
+      sender: senderId,
+      actionUrl: '/dashboard',
+      senderName: senderName,
+      projectName: projectName,
+      workspaceName: workspaceName
+    });
+  }
+
+  // Project deletion notification
+  static async createProjectDeletedNotification(recipientId, senderId, senderName, projectName, workspaceName) {
+    return this.createNotification({
+      recipient: recipientId,
+      type: 'project_deleted',
+      title: 'Project Deleted',
+      message: `${senderName} deleted project "${projectName}" from ${workspaceName}`,
+      sender: senderId,
+      actionUrl: '/dashboard'
     });
   }
 
@@ -427,6 +589,182 @@ static async createWorkspaceInviteNotification(inviteId, recipientId, senderId, 
       throw error;
     }
   }
+
+  // ========== ENHANCED NOTIFICATION TYPES ==========
+
+  static async createTaskCompletedNotification(taskId, completedByUserId, assigneeId, taskTitle, projectName = null) {
+    try {
+      const completedBy = await User.findById(completedByUserId).select('name profilePicture');
+      return await this.createNotification({
+        recipient: assigneeId,
+        type: 'task_completed',
+        title: 'Task Completed',
+        message: `${completedBy?.name || 'Someone'} completed task: "${taskTitle}"${projectName ? ` in project ${projectName}` : ''}`,
+        sender: completedBy,
+        task: taskId,
+        actionUrl: `/tasks/${taskId}`,
+        metadata: {
+          taskId,
+          completedByUserId,
+          projectName,
+          notificationType: 'task_completed'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating task completed notification:', error);
+      throw error;
+    }
+  }
+
+  static async createTaskDueSoonNotification(taskId, assigneeId, taskTitle, dueDate, projectName = null) {
+    try {
+      const timeUntilDue = new Date(dueDate) - new Date();
+      const hoursUntilDue = Math.floor(timeUntilDue / (1000 * 60 * 60));
+      
+      return await this.createNotification({
+        recipient: assigneeId,
+        type: 'task',
+        title: 'Task Due Soon',
+        message: `Task "${taskTitle}" is due in ${hoursUntilDue} hours${projectName ? ` in project ${projectName}` : ''}`,
+        task: taskId,
+        actionUrl: `/tasks/${taskId}`,
+        metadata: {
+          taskId,
+          dueDate,
+          projectName,
+          notificationType: 'task_due_soon'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating task due soon notification:', error);
+      throw error;
+    }
+  }
+
+  // Project-related notifications
+  static async createProjectCreatedNotification(projectId, creatorId, teamMemberIds, projectName, workspaceName = null) {
+    try {
+      const creator = await User.findById(creatorId).select('name');
+      const notifications = [];
+
+      for (const memberId of teamMemberIds) {
+        if (memberId.toString() !== creatorId.toString()) {
+          const notification = await this.createNotification({
+            recipient: memberId,
+            type: 'project',
+            title: 'New Project Created',
+            message: `${creator?.name || 'Someone'} created project "${projectName}"${workspaceName ? ` in ${workspaceName}` : ''} and added you to the team`,
+            sender: creatorId,
+            project: projectId,
+            actionUrl: `/projects/${projectId}`,
+            metadata: {
+              projectId,
+              creatorId,
+              workspaceName,
+              notificationType: 'project_created'
+            }
+          });
+          notifications.push(notification);
+        }
+      }
+
+      return notifications;
+    } catch (error) {
+      console.error('Error creating project created notification:', error);
+      throw error;
+    }
+  }
+
+  static async createProjectUpdatedNotification(projectId, updatedByUserId, teamMemberIds, projectName, updateType = 'general') {
+    try {
+      const updatedBy = await User.findById(updatedByUserId).select('name');
+      const notifications = [];
+
+      for (const memberId of teamMemberIds) {
+        if (memberId.toString() !== updatedByUserId.toString()) {
+          const notification = await this.createNotification({
+            recipient: memberId,
+            type: 'project',
+            title: 'Project Updated',
+            message: `${updatedBy?.name || 'Someone'} updated project "${projectName}"`,
+            sender: updatedByUserId,
+            project: projectId,
+            actionUrl: `/projects/${projectId}`,
+            metadata: {
+              projectId,
+              updatedByUserId,
+              updateType,
+              notificationType: 'project_updated'
+            }
+          });
+          notifications.push(notification);
+        }
+      }
+
+      return notifications;
+    } catch (error) {
+      console.error('Error creating project updated notification:', error);
+      throw error;
+    }
+  }
+
+  // Workspace-related notifications
+  static async createWorkspaceInviteNotification(inviteId, invitedUserId, inviterUserId, workspaceName) {
+    try {
+      const inviter = await User.findById(inviterUserId).select('name');
+      return await this.createNotification({
+        recipient: invitedUserId,
+        type: 'member_invite',
+        title: 'Workspace Invitation',
+        message: `${inviter?.name || 'Someone'} invited you to join "${workspaceName}" workspace`,
+        sender: inviterUserId,
+        inviteId: inviteId,
+        actionUrl: `/invites/${inviteId}`,
+        metadata: {
+          inviteId,
+          inviterUserId,
+          workspaceName,
+          notificationType: 'workspace_invite'
+        }
+      });
+    } catch (error) {
+      console.error('Error creating workspace invite notification:', error);
+      throw error;
+    }
+  }
+
+  static async createWorkspaceJoinedNotification(workspaceId, newMemberId, adminIds, newMemberName, workspaceName) {
+    try {
+      const notifications = [];
+
+      for (const adminId of adminIds) {
+        if (adminId.toString() !== newMemberId.toString()) {
+          const notification = await this.createNotification({
+            recipient: adminId,
+            type: 'workspace',
+            title: 'New Member Joined',
+            message: `${newMemberName} joined the "${workspaceName}" workspace`,
+            sender: newMemberId,
+            workspace: workspaceId,
+            actionUrl: `/workspaces/${workspaceId}/members`,
+            metadata: {
+              workspaceId,
+              newMemberId,
+              workspaceName,
+              notificationType: 'member_joined'
+            }
+          });
+          notifications.push(notification);
+        }
+      }
+
+      return notifications;
+    } catch (error) {
+      console.error('Error creating workspace joined notification:', error);
+      throw error;
+    }
+  }
+
 }
 
 export default NotificationService;

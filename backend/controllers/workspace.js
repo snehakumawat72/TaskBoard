@@ -521,6 +521,36 @@ const acceptInviteByToken = async (req, res) => {
 
     await workspace.save();
 
+    // Add import at top for NotificationService
+    const NotificationService = (await import("../libs/notification.service.js")).default;
+    
+    // Get member details for notification
+    const memberUser = await User.findById(user);
+    
+    // Create member joined notifications for all existing workspace members
+    try {
+      const workspaceMembers = workspace.members.map(member => member.user);
+      for (const memberId of workspaceMembers) {
+        if (memberId.toString() !== user.toString()) {
+          await NotificationService.createMemberJoinedNotification(
+            workspaceId,
+            memberId,
+            memberUser.name || memberUser.email,
+            workspace.name
+          );
+        }
+      }
+      
+      // Welcome notification for the new member
+      await NotificationService.createLoginWelcomeNotification(
+        user,
+        memberUser.name || memberUser.email,
+        new Date()
+      );
+    } catch (notificationError) {
+      console.log('Failed to create member joined notifications:', notificationError);
+    }
+
     await Promise.all([
       WorkspaceInvite.deleteOne({ _id: inviteInfo._id }),
       recordActivity(user, "joined_workspace", "Workspace", workspaceId, {

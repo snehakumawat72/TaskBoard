@@ -2,7 +2,7 @@
 import WorkspaceInvite from "../models/workspace-invite.js";
 import Workspace from "../models/workspace.js";
 import User from "../models/user.js";
-import NotificationService from "../libs/notification-service.js";
+import NotificationService from "../libs/notification.service.js";
 import { nanoid } from 'nanoid';
 
 // Create a workspace invite

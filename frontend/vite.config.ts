@@ -11,4 +11,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "app"), 
     },
   },
+  server: {
+    port: 5175,
+    strictPort: true, // This prevents Vite from trying other ports
+    host: true,
+  },
 });

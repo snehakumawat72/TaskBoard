@@ -25,7 +25,7 @@ export default [
     route("my-tasks", "routes/dashboard/my-tasks.tsx"),
     route("members", "routes/dashboard/members.tsx"),
     route("achieved", "routes/dashboard/achieved.tsx"),
-    route("notifications", "routes/dashboard/notifications.tsx"),
+    route("notifications", "routes/notifications.tsx"),
   ]),
   
    route(
@@ -36,4 +36,7 @@ export default [
   layout("routes/user/user-layout.tsx", [
     route("user/profile", "routes/user/profile.tsx"),
   ]),
+  
+  // Catch-all route for unmatched paths (including DevTools requests)
+  route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

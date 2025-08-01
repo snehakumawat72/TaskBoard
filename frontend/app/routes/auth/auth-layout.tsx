@@ -1,5 +1,5 @@
 import { useAuth } from "@/provider/auth-context";
-import React from "react";
+// ...existing code...
 import { Navigate, Outlet } from "react-router";
 
 const AuthLayout = () => {

@@ -47,6 +47,9 @@ const SignIn = () => {
   const { mutate: googleMutate, isPending: isGooglePending } = useGoogleAuthMutation();
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
     const disableOneTap = () => {
       if (window.google?.accounts?.id) {
         window.google.accounts.id.cancel();
@@ -118,16 +121,19 @@ const SignIn = () => {
   };
 
   const handleGoogleSuccess = (credentialResponse: any) => {
+    console.log("Google sign-in response:", credentialResponse);
     if (credentialResponse.credential) {
       googleMutate(
         { token: credentialResponse.credential },
         {
           onSuccess: (data) => {
+            console.log("Google auth success:", data);
             login(data);
             toast.success("Google sign-in successful");
             navigate("/dashboard");
           },
           onError: (error: any) => {
+            console.error("Google auth API error:", error);
             const errorMessage =
               error?.response?.data?.message ||
               error?.message ||
@@ -136,6 +142,9 @@ const SignIn = () => {
           },
         }
       );
+    } else {
+      console.error("No credential received from Google");
+      toast.error("No credential received from Google");
     }
   };
 
@@ -228,18 +237,16 @@ const SignIn = () => {
                 <GoogleLogin
                   onSuccess={handleGoogleSuccess}
                   onError={() => {
-                    toast.error("Google sign-in failed.");
+                    console.error("Google sign-in failed");
+                    toast.error("Google sign-in failed. Please try again.");
                   }}
-                  // flow="auth-code" // REMOVED: This prop is not directly on the <GoogleLogin> component
                   text="signin_with"
                   shape="rectangular"
                   size="large"
                   width="384"
-                  // disabled={isGooglePending} // The GoogleLogin component manages its own disabled state internally
-                  useOneTap={false} // This is for the one-tap UI, not related to the button itself
-                  auto_select={false} // This is for the one-tap UI
-                  cancel_on_tap_outside={true} // This is for the one-tap UI
-                  prompt_parent_id="google-signin-button"
+                  useOneTap={false}
+                  auto_select={false}
+                  cancel_on_tap_outside={true}
                 />
               </div>
 

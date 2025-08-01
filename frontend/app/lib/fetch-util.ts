@@ -59,7 +59,7 @@ const fetchUtil = async <T>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> => {
-  const token = localStorage.getItem('authToken'); // or however you store auth
+  const token = localStorage.getItem('token'); // Fixed: use consistent token key
   
   const config: RequestInit = {
     headers: {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import socket from "@/lib/socket";
+import socket from "../lib/socket";
 import {
   getNotifications,
   markNotificationAsRead,
@@ -7,11 +7,11 @@ import {
   deleteNotification,
   acceptWorkspaceInvite,
   rejectWorkspaceInvite
-} from "@/lib/fetch-util";
+} from "../lib/fetch-util";
 
 export interface Notification {
   _id: string;
-  type: 'workspace_invite' | 'task_assigned' | 'task_completed' | 'project_updated' | 'member_joined' | 'deadline_reminder' | 'comment_added';
+  type: 'workspace_invite' | 'task_assigned' | 'task_completed' | 'project_updated' | 'member_joined' | 'deadline_reminder' | 'comment_added' | 'login_welcome' | 'email_notification' | 'dashboard_update' | 'task_created' | 'task_updated' | 'task_deleted' | 'project_created' | 'project_deleted';
   title: string;
   message: string;
   isRead: boolean;
@@ -37,9 +37,12 @@ export function useNotifications() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getNotifications();
-      setNotifications(data);
-      setUnreadCount(data.filter((n: Notification) => !n.isRead).length);
+      const response = await getNotifications() as any;
+      const data = response?.data || response;
+      const notifications = Array.isArray(data?.notifications) ? data.notifications : (Array.isArray(data) ? data : []);
+      
+      setNotifications(notifications);
+      setUnreadCount(data?.unreadCount || notifications.filter((n: Notification) => !n.isRead).length);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch notifications");
     } finally {

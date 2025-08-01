@@ -4,6 +4,7 @@ import Comment from "../models/comment.js";
 import Project from "../models/project.js";
 import Task from "../models/task.js";
 import Workspace from "../models/workspace.js";
+import NotificationService from "../libs/notification.service.js";
 
 const createTask = async (req, res) => {
   try {
@@ -50,6 +51,40 @@ const createTask = async (req, res) => {
 
     project.tasks.push(newTask._id);
     await project.save();
+
+    // Create notifications for task creation and assignment
+    try {
+      // Notify all workspace members about new task (including creator for testing)
+      const workspaceMembers = workspace.members.map(member => member.user);
+      for (const memberId of workspaceMembers) {
+        // Always notify for testing - remove the self-exclusion
+        await NotificationService.createTaskCreatedNotification(
+          newTask._id,
+          memberId,
+          req.user._id,
+          req.user.name || req.user.email,
+          title,
+          project.title  // Fixed: use project.title instead of project.name
+        );
+      }
+
+      // Notify assigned users specifically
+      if (assignees && assignees.length > 0) {
+        for (const assigneeId of assignees) {
+          // Always notify for testing - remove the self-exclusion
+          await NotificationService.createTaskAssignedNotification(
+            newTask._id,
+            assigneeId,
+            req.user._id,
+            req.user.name || req.user.email,
+            title,
+            project.title  // Fixed: use project.title instead of project.name
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.log('Failed to create task notifications:', notificationError);
+    }
 
     res.status(201).json(newTask);
   } catch (error) {
@@ -226,6 +261,56 @@ const updateTaskStatus = async (req, res) => {
 
     task.status = status;
     await task.save();
+
+    // Create notifications for status changes
+    try {
+      // Gather all workspace members and assignees (avoid duplicates)
+      const workspace = await Workspace.findById(project.workspace);
+      const workspaceMembers = workspace ? workspace.members.map(m => m.user.toString()) : [];
+      const assignees = (task.assignees || []).map(a => a.toString());
+      const usersToNotify = new Set([...workspaceMembers, ...assignees]);
+      usersToNotify.delete(req.user._id.toString()); // Don't notify the actor
+
+      // If status changed from done/completed to something else (e.g., ongoing)
+      if ((oldStatus === 'done' || oldStatus === 'completed') && (status !== 'done' && status !== 'completed')) {
+        for (const userId of usersToNotify) {
+          await NotificationService.createTaskUpdatedNotification(
+            taskId,
+            userId,
+            req.user._id,
+            req.user.name || req.user.email,
+            task.title,
+            `reopened task: status changed from ${oldStatus} to ${status}`
+          );
+        }
+      } else if (status === 'completed' || status === 'done') {
+        // If task is now completed, notify all
+        for (const userId of usersToNotify) {
+          await NotificationService.createTaskCompletedNotification(
+            taskId,
+            userId,
+            req.user._id,
+            req.user.name || req.user.email,
+            task.title,
+            project.title
+          );
+        }
+      } else {
+        // General status update
+        for (const userId of usersToNotify) {
+          await NotificationService.createTaskUpdatedNotification(
+            taskId,
+            userId,
+            req.user._id,
+            req.user.name || req.user.email,
+            task.title,
+            `updated status from ${oldStatus} to ${status}`
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.log('Failed to create status update notifications:', notificationError);
+    }
 
     // record activity
     await recordActivity(req.user._id, "updated_task", "Task", taskId, {
@@ -507,6 +592,39 @@ const addComment = async (req, res) => {
     task.comments.push(newComment._id);
     await task.save();
 
+    // Create notifications for comment addition
+    try {
+      // Notify task assignees about new comment
+      if (task.assignees && task.assignees.length > 0) {
+        for (const assigneeId of task.assignees) {
+          if (assigneeId.toString() !== req.user._id.toString()) {
+            await NotificationService.createCommentAddedNotification(
+              taskId,
+              assigneeId,
+              req.user._id,
+              req.user.name || req.user.email,
+              task.title
+            );
+          }
+        }
+      }
+
+      // Also notify task creator if they're not the commenter and not already notified as assignee
+      if (task.createdBy && 
+          task.createdBy.toString() !== req.user._id.toString() && 
+          (!task.assignees || !task.assignees.some(id => id.toString() === task.createdBy.toString()))) {
+        await NotificationService.createCommentAddedNotification(
+          taskId,
+          task.createdBy,
+          req.user._id,
+          req.user.name || req.user.email,
+          task.title
+        );
+      }
+    } catch (notificationError) {
+      console.log('Failed to create comment notifications:', notificationError);
+    }
+
     // record activity
     await recordActivity(req.user._id, "added_comment", "Task", taskId, {
       description: `added comment ${
@@ -785,6 +903,37 @@ const deleteTask = async (req, res) => {
 
     // Delete the task
     await Task.findByIdAndDelete(taskId);
+
+    // Create notifications for task deletion
+    try {
+      // Collect all users to notify (workspace members + assignees, avoiding duplicates)
+      const usersToNotify = new Set();
+      
+      // Add all workspace members
+      workspace.members.forEach(member => {
+        usersToNotify.add(member.user.toString());
+      });
+      
+      // Add assignees (if any) - Set will prevent duplicates
+      if (task.assignees && task.assignees.length > 0) {
+        task.assignees.forEach(assigneeId => {
+          usersToNotify.add(assigneeId.toString());
+        });
+      }
+
+      // Send single notification to each unique user
+      for (const userId of usersToNotify) {
+        await NotificationService.createTaskDeletedNotification(
+          userId,
+          req.user._id,
+          req.user.name || req.user.email,
+          task.title,
+          project.title  // Fixed: use project.title instead of project.name
+        );
+      }
+    } catch (notificationError) {
+      console.log('Failed to create task deletion notifications:', notificationError);
+    }
 
     // record activity
     await recordActivity(req.user._id, "deleted_task", "Task", taskId, {
