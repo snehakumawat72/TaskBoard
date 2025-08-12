@@ -1,5 +1,6 @@
 // frontend/src/context/NotificationProvider.tsx
 
+import axios from 'axios';
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
@@ -119,6 +120,17 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
         notif.id === id ? { ...notif, read: true } : notif
       )
     );
+    console.log('✅ Marked notification as read:', id);
+    axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api-v1'}/notifications/${id}/read`, {}, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    }).then(() => {
+      console.log('✅ Notification marked as read successfully:', id);
+    }).catch(err => {
+      console.error('❌ Error marking notification as read:', err);
+    });
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
@@ -131,6 +143,16 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
 
   const deleteNotification = (id: string) => {
     const notification = notifications.find(n => n.id === id);
+    axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api-v1'}/notifications/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    }).then(() => {
+      console.log('✅ Notification deleted successfully:', id);
+    }).catch(err => {
+      console.error('❌ Error deleting notification:', err);
+    });
     setNotifications(prev => prev.filter(notif => notif.id !== id));
     if (notification && !notification.read) {
       setUnreadCount(prev => Math.max(0, prev - 1));

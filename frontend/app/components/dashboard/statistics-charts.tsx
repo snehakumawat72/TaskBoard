@@ -160,9 +160,9 @@ export const StatisticsCharts = ({
                 innerRadius={60}
                 outerRadius={80}
                 paddingAngle={2}
-                label={({ name, percent }) =>
-                  `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
-                }
+                // label={({ name, percent }) =>
+                //   `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
+                // }
                 labelLine={false}
               >
                 {projectStatusData?.map((entry, index) => (
@@ -201,9 +201,9 @@ export const StatisticsCharts = ({
                 paddingAngle={2}
                 dataKey="value"
                 nameKey="name"
-                label={({ name, percent }) =>
-                  `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
-                }
+                // label={({ name, percent }) =>
+                //   `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+                // }
                 labelLine={false}
               >
                 {taskPriorityData?.map((entry, index) => (

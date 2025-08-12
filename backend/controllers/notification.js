@@ -14,7 +14,13 @@ export const getNotifications = async (req, res) => {
 
 export const markAsRead = async (req, res) => {
   try {
+    
+    console.log('Marking notification as read:', req.params.id);
+    if (!req.params.id ) {
+      return res.status(400).json({ success: false, message: 'Notification ID is required' });
+    }
     await NotificationService.markAsRead(req.params.id);
+    // await NotificationService.markAsRead(req.params.id);
     res.status(200).json({ success: true, message: 'Notification marked as read' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to mark as read' });

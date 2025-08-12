@@ -146,13 +146,15 @@ class NotificationService {
   }
 
   // Mark notification as read
-  static async markAsRead(notificationId, userId) {
+  static async markAsRead(notificationId) {
+    // userid undefined
     try {
       const notification = await Notification.findOneAndUpdate(
-        { _id: notificationId, userId },
+        { _id: notificationId },
         { isRead: true },
         { new: true }
       );
+      const userId = notification.userId;
       if (!notification) throw new Error('Notification not found');
       // Emit updated unread count
       const io = getSocketIO();
